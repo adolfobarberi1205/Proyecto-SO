@@ -4,6 +4,7 @@
  */
 package simuladoros;
 
+import simuladoros.ui.VentanaPrincipal;
 /**
  *
  * @author user
@@ -14,7 +15,12 @@ public class App {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        // TODO code application logic here
+         System.out.println("Iniciando simulador de Sistema Operativo...");
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            new VentanaPrincipal().setVisible(true);
+        });
     }
-    
 }
+    
+    
+
