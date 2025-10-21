@@ -9,30 +9,30 @@ package simuladoros.core;
  * Recibe ticks del reloj mediante el Kernel.
  */
 public class CPU {
-    private Proceso actual;
+   private Proceso actual;
 
-    /** Ejecuta una instrucción del proceso actual. */
-    public void tick() {
-        if (actual == null) return;
+    /**
+     * Ejecuta una instrucción del proceso actual.
+     * @return Proceso que acaba de terminar, o null si nadie terminó en este tick.
+     */
+    public Proceso tick() {
+        if (actual == null) return null;
 
-        // Restar una instrucción
         int restantes = actual.getRestantes() - 1;
         actual.setRestantes(restantes);
 
-        // Si ya terminó, cambia estado
         if (restantes <= 0) {
             actual.setEstado(EstadoProceso.TERMINADO);
+            Proceso terminado = actual;
             actual = null;
+            return terminado;
         }
+        return null;
     }
 
-    public boolean estaLibre() {
-        return actual == null;
-    }
+    public boolean estaLibre() { return actual == null; }
 
-    public Proceso getActual() {
-        return actual;
-    }
+    public Proceso getActual() { return actual; }
 
     /** Cargar proceso en CPU */
     public void asignar(Proceso p) {
@@ -42,7 +42,5 @@ public class CPU {
     }
 
     /** Liberar CPU (proceso terminado o suspendido) */
-    public void liberar() {
-        this.actual = null;
-    }
+    public void liberar() { this.actual = null; }
 }

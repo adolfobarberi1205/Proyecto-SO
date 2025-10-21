@@ -15,7 +15,7 @@ import simuladoros.core.TipoProceso;
  * @author user
  */
 public class VentanaPrincipal  extends JFrame{
-  private final Kernel kernel = new Kernel();
+ private final Kernel kernel = new Kernel();
 
     private JLabel lblTitulo;
     private JLabel lblCiclo;
@@ -25,18 +25,19 @@ public class VentanaPrincipal  extends JFrame{
 
     private JButton btnNuevoProceso;
     private JList<String> listaListos;
+    private JList<String> listaTerminados;
     private JLabel lblEjecucion;
 
     public VentanaPrincipal() {
         initUI();
         enlazarEventos();
-        refrescarListaListos();
+        refrescarListas();
     }
 
     private void initUI() {
-        setTitle("Simulador de Sistema Operativo");
+        setTitle("Simulador de Sistema Operivo - FCFS");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(720, 500);
+        setSize(900, 560);
         setLocationRelativeTo(null);
 
         lblTitulo = new JLabel("Simulador de Planificación FCFS", SwingConstants.CENTER);
@@ -54,6 +55,7 @@ public class VentanaPrincipal  extends JFrame{
 
         btnNuevoProceso = new JButton("Nuevo Proceso");
         listaListos = new JList<>();
+        listaTerminados = new JList<>();
         lblEjecucion = new JLabel("CPU: [sin proceso]", SwingConstants.CENTER);
         lblEjecucion.setFont(new Font("Segoe UI", Font.PLAIN, 14));
 
@@ -66,19 +68,33 @@ public class VentanaPrincipal  extends JFrame{
         panelControl.add(Box.createHorizontalStrut(20));
         panelControl.add(btnNuevoProceso);
 
-        JPanel centro = new JPanel();
-        centro.setLayout(new BoxLayout(centro, BoxLayout.Y_AXIS));
+        // Panel central con dos columnas: Listos y Terminados
+        JPanel centro = new JPanel(new BorderLayout(10,10));
+
+        JPanel superior = new JPanel();
+        superior.setLayout(new BoxLayout(superior, BoxLayout.Y_AXIS));
         lblCiclo.setAlignmentX(Component.CENTER_ALIGNMENT);
         lblEjecucion.setAlignmentX(Component.CENTER_ALIGNMENT);
-        centro.add(Box.createVerticalStrut(10));
-        centro.add(lblCiclo);
-        centro.add(Box.createVerticalStrut(10));
-        centro.add(lblEjecucion);
-        centro.add(Box.createVerticalStrut(10));
-        centro.add(new JLabel("Cola de Listos:"));
-        JScrollPane sp = new JScrollPane(listaListos);
-        sp.setPreferredSize(new Dimension(650, 220));
-        centro.add(sp);
+        superior.add(Box.createVerticalStrut(10));
+        superior.add(lblCiclo);
+        superior.add(Box.createVerticalStrut(10));
+        superior.add(lblEjecucion);
+        superior.add(Box.createVerticalStrut(10));
+
+        JPanel columnas = new JPanel(new GridLayout(1, 2, 10, 10));
+        JPanel colListos = new JPanel(new BorderLayout());
+        colListos.add(new JLabel("Cola de Listos", SwingConstants.CENTER), BorderLayout.NORTH);
+        colListos.add(new JScrollPane(listaListos), BorderLayout.CENTER);
+
+        JPanel colTerminados = new JPanel(new BorderLayout());
+        colTerminados.add(new JLabel("Procesos Terminados", SwingConstants.CENTER), BorderLayout.NORTH);
+        colTerminados.add(new JScrollPane(listaTerminados), BorderLayout.CENTER);
+
+        columnas.add(colListos);
+        columnas.add(colTerminados);
+
+        centro.add(superior, BorderLayout.NORTH);
+        centro.add(columnas, BorderLayout.CENTER);
 
         setLayout(new BorderLayout(10,10));
         add(lblTitulo, BorderLayout.NORTH);
@@ -90,7 +106,8 @@ public class VentanaPrincipal  extends JFrame{
         kernel.setCicloListener((numeroCiclo, ts) ->
                 SwingUtilities.invokeLater(() -> {
                     lblCiclo.setText("Ciclo actual: " + numeroCiclo);
-                    actualizarVistaProcesos();
+                    actualizarVistaCPU();
+                    refrescarListas();
                 })
         );
 
@@ -141,27 +158,40 @@ public class VentanaPrincipal  extends JFrame{
         }
 
         kernel.crearProceso(nombre.trim(), tipo, total);
-        refrescarListaListos();
+        refrescarListas();
     }
 
-    private void actualizarVistaProcesos() {
-        refrescarListaListos();
+    private void actualizarVistaCPU() {
         Proceso actual = kernel.getProcesoActual();
-        if (actual != null)
-            lblEjecucion.setText("CPU: " + actual.getNombre() + " (" + actual.getRestantes() + "/" + actual.getTotalInstrucciones() + ")");
-        else
+        if (actual != null) {
+            lblEjecucion.setText("CPU: " + actual.getNombre()
+                    + " (" + actual.getRestantes() + "/" + actual.getTotalInstrucciones() + ")");
+        } else {
             lblEjecucion.setText("CPU: [sin proceso]");
+        }
     }
 
-    private void refrescarListaListos() {
-        Proceso[] arr = kernel.snapshotListos();
-        String[] filas = new String[arr.length];
-        for (int i = 0; i < arr.length; i++) {
-            Proceso p = arr[i];
-            filas[i] = String.format("PID %d | %-12s | %-9s | Estado: %s | %d/%d",
+    private void refrescarListas() {
+        // Listos
+        Proceso[] listos = kernel.snapshotListos();
+        String[] filasListos = new String[listos.length];
+        for (int i = 0; i < listos.length; i++) {
+            Proceso p = listos[i];
+            filasListos[i] = String.format("PID %d | %-12s | %-9s | Estado: %s | %d/%d",
                     p.getPid(), p.getNombre(), p.getTipo(), p.getEstado(),
                     p.getRestantes(), p.getTotalInstrucciones());
         }
-        listaListos.setListData(filas);
+        listaListos.setListData(filasListos);
+
+        // Terminados
+        Proceso[] terms = kernel.snapshotTerminados();
+        String[] filasTerm = new String[terms.length];
+        for (int i = 0; i < terms.length; i++) {
+            Proceso p = terms[i];
+            filasTerm[i] = String.format("PID %d | %-12s | %-9s | Estado: %s | %d/%d",
+                    p.getPid(), p.getNombre(), p.getTipo(), p.getEstado(),
+                    p.getRestantes(), p.getTotalInstrucciones());
+        }
+        listaTerminados.setListData(filasTerm);
     }
 }

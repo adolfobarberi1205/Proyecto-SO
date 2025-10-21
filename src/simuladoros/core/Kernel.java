@@ -9,7 +9,7 @@ package simuladoros.core;
  * @author user
  */
 public class Kernel {
- private Reloj reloj = new Reloj();
+private Reloj reloj = new Reloj();
     private ciclolistener cicloListener;
 
     private final ColaProceso colaListos = new ColaProceso();
@@ -20,17 +20,12 @@ public class Kernel {
     private int nextPid = 1;
 
     public Kernel() {
-        // Cada tick del reloj invoca planificador
         reloj.setListener((ciclo, ts) -> onTick());
     }
 
-    public void setCicloListener(ciclolistener l) {
-        this.cicloListener = l;
-    }
+    public void setCicloListener(ciclolistener l) { this.cicloListener = l; }
 
-    // --------------------------------------------------
-    // Control del reloj
-    // --------------------------------------------------
+    // ------------------ Control del reloj ------------------
     public void iniciar() {
         if (!reloj.isAlive()) {
             reloj = new Reloj();
@@ -51,9 +46,7 @@ public class Kernel {
     public void setDuracionCiclo(int ms) { reloj.setDuracionCiclo(ms); }
     public int getDuracionCiclo() { return reloj.getDuracionCiclo(); }
 
-    // --------------------------------------------------
-    // Procesos
-    // --------------------------------------------------
+    // ------------------ Procesos ------------------
     public Proceso crearProceso(String nombre, TipoProceso tipo, int totalInstr) {
         Proceso p = new Proceso(nextPid++, nombre, tipo, totalInstr);
         p.setEstado(EstadoProceso.LISTO);
@@ -61,41 +54,35 @@ public class Kernel {
         return p;
     }
 
-    public Proceso[] snapshotListos() {
-        return colaListos.toArray();
-    }
+    public Proceso[] snapshotListos() { return colaListos.toArray(); }
+    public Proceso[] snapshotTerminados() { return colaTerminados.toArray(); }
+    public Proceso getProcesoActual() { return cpu.getActual(); }
 
-    public Proceso getProcesoActual() {
-        return cpu.getActual();
-    }
-
-    // --------------------------------------------------
-    // Núcleo de planificación FCFS
-    // --------------------------------------------------
+    // ------------------ Planificación FCFS ------------------
     private void onTick() {
-        // 1️⃣ Notificar a la UI si hay listener
+        // 1) Notificar ciclo a la UI
         if (cicloListener != null)
             cicloListener.onTick(reloj.getCicloActual(), System.currentTimeMillis());
 
-        // 2️⃣ Si CPU libre, tomar siguiente proceso de la cola
+        // 2) Si CPU libre, asignar siguiente de Listos
         if (cpu.estaLibre() && !colaListos.estaVacia()) {
             Proceso siguiente = colaListos.desencolar();
             cpu.asignar(siguiente);
         }
 
-        // 3️⃣ Ejecutar instrucción
-        cpu.tick();
+        // 3) Ejecutar una instrucción
+        Proceso recienTerminado = cpu.tick();
 
-        // 4️⃣ Si terminó el proceso, mover a terminados
-        if (cpu.getActual() == null && !colaListos.estaVacia()) {
-            // CPU libre pero hay más procesos, asignar siguiente
+        // 4) Si terminó, llevarlo a Terminados
+        if (recienTerminado != null) {
+            colaTerminados.encolar(recienTerminado);
+        }
+
+        // 5) Si CPU quedó libre y hay más listos, asignar siguiente
+        if (cpu.estaLibre() && !colaListos.estaVacia()) {
             Proceso siguiente = colaListos.desencolar();
             cpu.asignar(siguiente);
         }
-    }
-
-    public Proceso[] snapshotTerminados() {
-        return colaTerminados.toArray();
     }
 }
     
