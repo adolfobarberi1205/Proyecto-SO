@@ -9,13 +9,11 @@ package simuladoros.core;
  * Recibe ticks del reloj mediante el Kernel.
  */
 public class CPU {
-  private Proceso actual;
+ private Proceso actual;
 
     /**
      * Ejecuta una instrucción del proceso actual.
-     * - Si termina, devuelve evento TERMINADO.
-     * - Si solicita E/S (solo IO_BOUND), devuelve evento BLOQUEADO (espera fija).
-     * - Si nada especial, devuelve NINGUNO.
+     * Devuelve evento TERMINADO/BLOQUEADO/ninguno.
      */
     public ProcesoEvento tick() {
         if (actual == null) return ProcesoEvento.ninguno();
@@ -32,32 +30,36 @@ public class CPU {
             return ProcesoEvento.terminado(terminado);
         }
 
-        // ¿Solicita E/S? (regla simple para demo: IO_BOUND se bloquea cada 5 instrucciones)
+        // ¿Pide I/O? (regla simple demo para IO_BOUND)
         if (actual.getTipo() == TipoProceso.IO_BOUND) {
-            // se bloquea cuando al proceso le queden múltiplos de 5 instrucciones
-            if (restantes > 0 && (restantes % 5 == 0)) {
+            if (restantes > 0 && (restantes % 5 == 0)) { // cada 5 instrucciones
                 actual.setEstado(EstadoProceso.BLOQUEADO);
                 Proceso bloqueado = actual;
                 actual = null;
-                // Esperará 3 ciclos de I/O
-                return ProcesoEvento.bloqueado(bloqueado, 3);
+                return ProcesoEvento.bloqueado(bloqueado, 3); // espera 3 ciclos
             }
         }
 
         return ProcesoEvento.ninguno();
     }
 
-    public boolean estaLibre() { return actual == null; }
+    /** Preempción: saca el proceso actual y lo devuelve en estado LISTO. */
+    public Proceso preempt() {
+        if (actual == null) return null;
+        Proceso p = actual;
+        p.setEstado(EstadoProceso.LISTO);
+        actual = null;
+        return p;
+    }
 
+    public boolean estaLibre() { return actual == null; }
     public Proceso getActual() { return actual; }
 
-    /** Cargar proceso en CPU */
     public void asignar(Proceso p) {
         if (p == null) return;
         p.setEstado(EstadoProceso.EJECUTANDO);
         this.actual = p;
     }
 
-    /** Liberar CPU */
     public void liberar() { this.actual = null; }
 }

@@ -18,10 +18,14 @@ public class VentanaPrincipal  extends JFrame{
   private final Kernel kernel = new Kernel();
 
     private JLabel lblTitulo;
+    private JLabel lblPlan;
     private JLabel lblCiclo;
     private JButton btnIniciar;
     private JButton btnPausa;
     private JSpinner spDuracion;
+
+    private JComboBox<String> cbAlgoritmo;
+    private JSpinner spQuantum;
 
     private JButton btnNuevoProceso;
     private JList<String> listaListos;
@@ -36,13 +40,16 @@ public class VentanaPrincipal  extends JFrame{
     }
 
     private void initUI() {
-        setTitle("Simulador de Sistema Operivo - FCFS + I/O");
+        setTitle("Simulador de Sistema Operativo - Planificación");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1000, 620);
+        setSize(1050, 650);
         setLocationRelativeTo(null);
 
-        lblTitulo = new JLabel("Simulador de Planificación FCFS (con Bloqueos de E/S)", SwingConstants.CENTER);
+        lblTitulo = new JLabel("Simulador de Planificación (FCFS / Round Robin)", SwingConstants.CENTER);
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
+
+        lblPlan = new JLabel("Política actual: " + kernel.nombrePlanificador(), SwingConstants.CENTER);
+        lblPlan.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
         lblCiclo = new JLabel("Ciclo actual: 0", SwingConstants.CENTER);
         lblCiclo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -53,6 +60,10 @@ public class VentanaPrincipal  extends JFrame{
 
         spDuracion = new JSpinner(new SpinnerNumberModel(500, 10, 5000, 10));
         JLabel lblMs = new JLabel("ms/ciclo");
+
+        cbAlgoritmo = new JComboBox<>(new String[]{"FCFS", "Round Robin"});
+        spQuantum = new JSpinner(new SpinnerNumberModel(3, 1, 50, 1));
+        JLabel lblQ = new JLabel("Quantum:");
 
         btnNuevoProceso = new JButton("Nuevo Proceso");
         listaListos = new JList<>();
@@ -65,26 +76,33 @@ public class VentanaPrincipal  extends JFrame{
         panelControl.add(new JLabel("Duración:"));
         panelControl.add(spDuracion);
         panelControl.add(lblMs);
+        panelControl.add(new JLabel("Algoritmo:"));
+        panelControl.add(cbAlgoritmo);
+        panelControl.add(lblQ);
+        panelControl.add(spQuantum);
         panelControl.add(btnIniciar);
         panelControl.add(btnPausa);
         panelControl.add(Box.createHorizontalStrut(20));
         panelControl.add(btnNuevoProceso);
 
-        // Panel central con 3 columnas: Listos, Bloqueados, Terminados
         JPanel centro = new JPanel(new BorderLayout(10,10));
 
         JPanel superior = new JPanel();
         superior.setLayout(new BoxLayout(superior, BoxLayout.Y_AXIS));
+        lblTitulo.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblPlan.setAlignmentX(Component.CENTER_ALIGNMENT);
         lblCiclo.setAlignmentX(Component.CENTER_ALIGNMENT);
         lblEjecucion.setAlignmentX(Component.CENTER_ALIGNMENT);
-        superior.add(Box.createVerticalStrut(10));
+        superior.add(Box.createVerticalStrut(6));
+        superior.add(lblTitulo);
+        superior.add(lblPlan);
+        superior.add(Box.createVerticalStrut(6));
         superior.add(lblCiclo);
-        superior.add(Box.createVerticalStrut(10));
+        superior.add(Box.createVerticalStrut(6));
         superior.add(lblEjecucion);
-        superior.add(Box.createVerticalStrut(10));
+        superior.add(Box.createVerticalStrut(6));
 
         JPanel columnas = new JPanel(new GridLayout(1, 3, 10, 10));
-
         columnas.add(panelLista("Cola de Listos", listaListos));
         columnas.add(panelLista("Bloqueados (E/S)", listaBloqueados));
         columnas.add(panelLista("Terminados", listaTerminados));
@@ -93,7 +111,6 @@ public class VentanaPrincipal  extends JFrame{
         centro.add(columnas, BorderLayout.CENTER);
 
         setLayout(new BorderLayout(10,10));
-        add(lblTitulo, BorderLayout.NORTH);
         add(centro, BorderLayout.CENTER);
         add(panelControl, BorderLayout.SOUTH);
     }
@@ -102,7 +119,7 @@ public class VentanaPrincipal  extends JFrame{
         JPanel p = new JPanel(new BorderLayout());
         p.add(new JLabel(titulo, SwingConstants.CENTER), BorderLayout.NORTH);
         JScrollPane sp = new JScrollPane(list);
-        sp.setPreferredSize(new Dimension(300, 350));
+        sp.setPreferredSize(new Dimension(320, 380));
         p.add(sp, BorderLayout.CENTER);
         return p;
     }
@@ -118,6 +135,7 @@ public class VentanaPrincipal  extends JFrame{
 
         btnIniciar.addActionListener(e -> {
             kernel.setDuracionCiclo((Integer) spDuracion.getValue());
+            aplicarAlgoritmoActual();
             kernel.iniciar();
             btnIniciar.setEnabled(false);
             btnPausa.setEnabled(true);
@@ -129,11 +147,37 @@ public class VentanaPrincipal  extends JFrame{
             else btnPausa.setText("Pausar");
         });
 
-        spDuracion.addChangeListener(e ->
-                kernel.setDuracionCiclo((Integer) spDuracion.getValue())
-        );
+        spDuracion.addChangeListener(e -> kernel.setDuracionCiclo((Integer) spDuracion.getValue()));
+
+        cbAlgoritmo.addActionListener(e -> {
+            aplicarAlgoritmoActual();
+        });
+
+        spQuantum.addChangeListener(e -> {
+            kernel.setQuantumSiRR((Integer) spQuantum.getValue());
+        });
 
         btnNuevoProceso.addActionListener(e -> crearProcesoDesdeDialogo());
+
+        // Por defecto, ocultar spinner de quantum si FCFS
+        actualizarVisibilidadQuantum();
+    }
+
+    private void aplicarAlgoritmoActual() {
+        String sel = (String) cbAlgoritmo.getSelectedItem();
+        if ("Round Robin".equals(sel)) {
+            int q = (Integer) spQuantum.getValue();
+            kernel.setPlanificadorRR(q);
+        } else {
+            kernel.setPlanificadorFCFS();
+        }
+        lblPlan.setText("Política actual: " + kernel.nombrePlanificador());
+        actualizarVisibilidadQuantum();
+    }
+
+    private void actualizarVisibilidadQuantum() {
+        boolean rr = "Round Robin".equals(cbAlgoritmo.getSelectedItem());
+        spQuantum.setEnabled(rr);
     }
 
     private void crearProcesoDesdeDialogo() {
