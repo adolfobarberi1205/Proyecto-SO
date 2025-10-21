@@ -25,6 +25,7 @@ public class VentanaPrincipal  extends JFrame{
 
     private JButton btnNuevoProceso;
     private JList<String> listaListos;
+    private JLabel lblEjecucion;
 
     public VentanaPrincipal() {
         initUI();
@@ -35,10 +36,10 @@ public class VentanaPrincipal  extends JFrame{
     private void initUI() {
         setTitle("Simulador de Sistema Operativo");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(720, 420);
+        setSize(720, 500);
         setLocationRelativeTo(null);
 
-        lblTitulo = new JLabel("Simulador de Planificación de Procesos", SwingConstants.CENTER);
+        lblTitulo = new JLabel("Simulador de Planificación FCFS", SwingConstants.CENTER);
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
 
         lblCiclo = new JLabel("Ciclo actual: 0", SwingConstants.CENTER);
@@ -53,8 +54,9 @@ public class VentanaPrincipal  extends JFrame{
 
         btnNuevoProceso = new JButton("Nuevo Proceso");
         listaListos = new JList<>();
+        lblEjecucion = new JLabel("CPU: [sin proceso]", SwingConstants.CENTER);
+        lblEjecucion.setFont(new Font("Segoe UI", Font.PLAIN, 14));
 
-        // Panel controles
         JPanel panelControl = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         panelControl.add(new JLabel("Duración:"));
         panelControl.add(spDuracion);
@@ -64,12 +66,14 @@ public class VentanaPrincipal  extends JFrame{
         panelControl.add(Box.createHorizontalStrut(20));
         panelControl.add(btnNuevoProceso);
 
-        // Panel centro con ciclo + cola de listos
         JPanel centro = new JPanel();
         centro.setLayout(new BoxLayout(centro, BoxLayout.Y_AXIS));
         lblCiclo.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblEjecucion.setAlignmentX(Component.CENTER_ALIGNMENT);
         centro.add(Box.createVerticalStrut(10));
         centro.add(lblCiclo);
+        centro.add(Box.createVerticalStrut(10));
+        centro.add(lblEjecucion);
         centro.add(Box.createVerticalStrut(10));
         centro.add(new JLabel("Cola de Listos:"));
         JScrollPane sp = new JScrollPane(listaListos);
@@ -83,9 +87,11 @@ public class VentanaPrincipal  extends JFrame{
     }
 
     private void enlazarEventos() {
-        // Actualizar GUI en cada tick del reloj
         kernel.setCicloListener((numeroCiclo, ts) ->
-            SwingUtilities.invokeLater(() -> lblCiclo.setText("Ciclo actual: " + numeroCiclo))
+                SwingUtilities.invokeLater(() -> {
+                    lblCiclo.setText("Ciclo actual: " + numeroCiclo);
+                    actualizarVistaProcesos();
+                })
         );
 
         btnIniciar.addActionListener(e -> {
@@ -118,7 +124,7 @@ public class VentanaPrincipal  extends JFrame{
                 "Nuevo Proceso",
                 JOptionPane.QUESTION_MESSAGE,
                 null,
-                new Object[]{ "CPU_BOUND", "IO_BOUND" },
+                new Object[]{"CPU_BOUND", "IO_BOUND"},
                 "CPU_BOUND"
         );
         if (opcion == null) return;
@@ -136,6 +142,15 @@ public class VentanaPrincipal  extends JFrame{
 
         kernel.crearProceso(nombre.trim(), tipo, total);
         refrescarListaListos();
+    }
+
+    private void actualizarVistaProcesos() {
+        refrescarListaListos();
+        Proceso actual = kernel.getProcesoActual();
+        if (actual != null)
+            lblEjecucion.setText("CPU: " + actual.getNombre() + " (" + actual.getRestantes() + "/" + actual.getTotalInstrucciones() + ")");
+        else
+            lblEjecucion.setText("CPU: [sin proceso]");
     }
 
     private void refrescarListaListos() {
