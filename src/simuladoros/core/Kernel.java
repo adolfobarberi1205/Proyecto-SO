@@ -14,9 +14,9 @@ private Reloj reloj = new Reloj();
 
     private final ColaProceso colaListos = new ColaProceso();
     private final ColaProceso colaTerminados = new ColaProceso();
+    private final ColaBloqueados colaBloqueados = new ColaBloqueados();
 
     private final CPU cpu = new CPU();
-
     private int nextPid = 1;
 
     public Kernel() {
@@ -29,7 +29,7 @@ private Reloj reloj = new Reloj();
     public void iniciar() {
         if (!reloj.isAlive()) {
             reloj = new Reloj();
-            reloj.setListener((ciclo, ts) -> onTick());
+            reloj.setListener((c, ts) -> onTick());
             reloj.iniciar();
         }
     }
@@ -56,9 +56,10 @@ private Reloj reloj = new Reloj();
 
     public Proceso[] snapshotListos() { return colaListos.toArray(); }
     public Proceso[] snapshotTerminados() { return colaTerminados.toArray(); }
+    public String[] snapshotBloqueadosStrings() { return colaBloqueados.toDisplayStrings(); }
     public Proceso getProcesoActual() { return cpu.getActual(); }
 
-    // ------------------ Planificación FCFS ------------------
+    // ------------------ Planificación FCFS + I/O ------------------
     private void onTick() {
         // 1) Notificar ciclo a la UI
         if (cicloListener != null)
@@ -66,24 +67,25 @@ private Reloj reloj = new Reloj();
 
         // 2) Si CPU libre, asignar siguiente de Listos
         if (cpu.estaLibre() && !colaListos.estaVacia()) {
-            Proceso siguiente = colaListos.desencolar();
-            cpu.asignar(siguiente);
+            cpu.asignar(colaListos.desencolar());
         }
 
-        // 3) Ejecutar una instrucción
-        Proceso recienTerminado = cpu.tick();
-
-        // 4) Si terminó, llevarlo a Terminados
-        if (recienTerminado != null) {
-            colaTerminados.encolar(recienTerminado);
+        // 3) Ejecutar 1 instrucción y manejar evento
+        ProcesoEvento ev = cpu.tick();
+        switch (ev.getTipo()) {
+            case TERMINADO -> colaTerminados.encolar(ev.getProceso());
+            case BLOQUEADO -> colaBloqueados.bloquear(ev.getProceso(), ev.getIoEsperaCiclos());
+            case NINGUNO -> { /* nada */ }
         }
 
-        // 5) Si CPU quedó libre y hay más listos, asignar siguiente
+        // 4) Avanzar la cola de bloqueados (decrementar esperas y liberar a LISTOS)
+        Proceso[] liberados = colaBloqueados.avanzarUnCicloYLiberar();
+        for (Proceso p : liberados) colaListos.encolar(p);
+
+        // 5) Si CPU libre y hay listos, asignar siguiente
         if (cpu.estaLibre() && !colaListos.estaVacia()) {
-            Proceso siguiente = colaListos.desencolar();
-            cpu.asignar(siguiente);
+            cpu.asignar(colaListos.desencolar());
         }
     }
 }
-    
 

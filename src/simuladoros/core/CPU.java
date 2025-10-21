@@ -9,25 +9,42 @@ package simuladoros.core;
  * Recibe ticks del reloj mediante el Kernel.
  */
 public class CPU {
-   private Proceso actual;
+  private Proceso actual;
 
     /**
      * Ejecuta una instrucción del proceso actual.
-     * @return Proceso que acaba de terminar, o null si nadie terminó en este tick.
+     * - Si termina, devuelve evento TERMINADO.
+     * - Si solicita E/S (solo IO_BOUND), devuelve evento BLOQUEADO (espera fija).
+     * - Si nada especial, devuelve NINGUNO.
      */
-    public Proceso tick() {
-        if (actual == null) return null;
+    public ProcesoEvento tick() {
+        if (actual == null) return ProcesoEvento.ninguno();
 
+        // Ejecutar 1 instrucción
         int restantes = actual.getRestantes() - 1;
         actual.setRestantes(restantes);
 
+        // ¿Terminó?
         if (restantes <= 0) {
             actual.setEstado(EstadoProceso.TERMINADO);
             Proceso terminado = actual;
             actual = null;
-            return terminado;
+            return ProcesoEvento.terminado(terminado);
         }
-        return null;
+
+        // ¿Solicita E/S? (regla simple para demo: IO_BOUND se bloquea cada 5 instrucciones)
+        if (actual.getTipo() == TipoProceso.IO_BOUND) {
+            // se bloquea cuando al proceso le queden múltiplos de 5 instrucciones
+            if (restantes > 0 && (restantes % 5 == 0)) {
+                actual.setEstado(EstadoProceso.BLOQUEADO);
+                Proceso bloqueado = actual;
+                actual = null;
+                // Esperará 3 ciclos de I/O
+                return ProcesoEvento.bloqueado(bloqueado, 3);
+            }
+        }
+
+        return ProcesoEvento.ninguno();
     }
 
     public boolean estaLibre() { return actual == null; }
@@ -41,6 +58,6 @@ public class CPU {
         this.actual = p;
     }
 
-    /** Liberar CPU (proceso terminado o suspendido) */
+    /** Liberar CPU */
     public void liberar() { this.actual = null; }
 }

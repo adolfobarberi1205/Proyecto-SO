@@ -15,7 +15,7 @@ import simuladoros.core.TipoProceso;
  * @author user
  */
 public class VentanaPrincipal  extends JFrame{
- private final Kernel kernel = new Kernel();
+  private final Kernel kernel = new Kernel();
 
     private JLabel lblTitulo;
     private JLabel lblCiclo;
@@ -25,6 +25,7 @@ public class VentanaPrincipal  extends JFrame{
 
     private JButton btnNuevoProceso;
     private JList<String> listaListos;
+    private JList<String> listaBloqueados;
     private JList<String> listaTerminados;
     private JLabel lblEjecucion;
 
@@ -35,12 +36,12 @@ public class VentanaPrincipal  extends JFrame{
     }
 
     private void initUI() {
-        setTitle("Simulador de Sistema Operivo - FCFS");
+        setTitle("Simulador de Sistema Operivo - FCFS + I/O");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(900, 560);
+        setSize(1000, 620);
         setLocationRelativeTo(null);
 
-        lblTitulo = new JLabel("Simulador de Planificación FCFS", SwingConstants.CENTER);
+        lblTitulo = new JLabel("Simulador de Planificación FCFS (con Bloqueos de E/S)", SwingConstants.CENTER);
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
 
         lblCiclo = new JLabel("Ciclo actual: 0", SwingConstants.CENTER);
@@ -55,6 +56,7 @@ public class VentanaPrincipal  extends JFrame{
 
         btnNuevoProceso = new JButton("Nuevo Proceso");
         listaListos = new JList<>();
+        listaBloqueados = new JList<>();
         listaTerminados = new JList<>();
         lblEjecucion = new JLabel("CPU: [sin proceso]", SwingConstants.CENTER);
         lblEjecucion.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -68,7 +70,7 @@ public class VentanaPrincipal  extends JFrame{
         panelControl.add(Box.createHorizontalStrut(20));
         panelControl.add(btnNuevoProceso);
 
-        // Panel central con dos columnas: Listos y Terminados
+        // Panel central con 3 columnas: Listos, Bloqueados, Terminados
         JPanel centro = new JPanel(new BorderLayout(10,10));
 
         JPanel superior = new JPanel();
@@ -81,17 +83,11 @@ public class VentanaPrincipal  extends JFrame{
         superior.add(lblEjecucion);
         superior.add(Box.createVerticalStrut(10));
 
-        JPanel columnas = new JPanel(new GridLayout(1, 2, 10, 10));
-        JPanel colListos = new JPanel(new BorderLayout());
-        colListos.add(new JLabel("Cola de Listos", SwingConstants.CENTER), BorderLayout.NORTH);
-        colListos.add(new JScrollPane(listaListos), BorderLayout.CENTER);
+        JPanel columnas = new JPanel(new GridLayout(1, 3, 10, 10));
 
-        JPanel colTerminados = new JPanel(new BorderLayout());
-        colTerminados.add(new JLabel("Procesos Terminados", SwingConstants.CENTER), BorderLayout.NORTH);
-        colTerminados.add(new JScrollPane(listaTerminados), BorderLayout.CENTER);
-
-        columnas.add(colListos);
-        columnas.add(colTerminados);
+        columnas.add(panelLista("Cola de Listos", listaListos));
+        columnas.add(panelLista("Bloqueados (E/S)", listaBloqueados));
+        columnas.add(panelLista("Terminados", listaTerminados));
 
         centro.add(superior, BorderLayout.NORTH);
         centro.add(columnas, BorderLayout.CENTER);
@@ -100,6 +96,15 @@ public class VentanaPrincipal  extends JFrame{
         add(lblTitulo, BorderLayout.NORTH);
         add(centro, BorderLayout.CENTER);
         add(panelControl, BorderLayout.SOUTH);
+    }
+
+    private JPanel panelLista(String titulo, JList<String> list) {
+        JPanel p = new JPanel(new BorderLayout());
+        p.add(new JLabel(titulo, SwingConstants.CENTER), BorderLayout.NORTH);
+        JScrollPane sp = new JScrollPane(list);
+        sp.setPreferredSize(new Dimension(300, 350));
+        p.add(sp, BorderLayout.CENTER);
+        return p;
     }
 
     private void enlazarEventos() {
@@ -177,18 +182,21 @@ public class VentanaPrincipal  extends JFrame{
         String[] filasListos = new String[listos.length];
         for (int i = 0; i < listos.length; i++) {
             Proceso p = listos[i];
-            filasListos[i] = String.format("PID %d | %-12s | %-9s | Estado: %s | %d/%d",
+            filasListos[i] = String.format("PID %d | %-12s | %-9s | %s | %d/%d",
                     p.getPid(), p.getNombre(), p.getTipo(), p.getEstado(),
                     p.getRestantes(), p.getTotalInstrucciones());
         }
         listaListos.setListData(filasListos);
+
+        // Bloqueados
+        listaBloqueados.setListData(kernel.snapshotBloqueadosStrings());
 
         // Terminados
         Proceso[] terms = kernel.snapshotTerminados();
         String[] filasTerm = new String[terms.length];
         for (int i = 0; i < terms.length; i++) {
             Proceso p = terms[i];
-            filasTerm[i] = String.format("PID %d | %-12s | %-9s | Estado: %s | %d/%d",
+            filasTerm[i] = String.format("PID %d | %-12s | %-9s | %s | %d/%d",
                     p.getPid(), p.getNombre(), p.getTipo(), p.getEstado(),
                     p.getRestantes(), p.getTotalInstrucciones());
         }
