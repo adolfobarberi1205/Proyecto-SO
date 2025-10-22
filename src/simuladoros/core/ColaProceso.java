@@ -96,5 +96,19 @@ public class ColaProceso {
         }
         size--;
         return v;
+    }/** Saca y retorna el proceso con MENOR prioridad (número más bajo = mayor prioridad). */
+    public Proceso retirarMinPorPrioridad() {
+        if (head == null) return null;
+        Nodo prevMin = null, min = head;
+        Nodo prev = null, cur = head;
+        while (cur != null) {
+            if (cur.value.getPrioridad() < min.value.getPrioridad()) {
+                min = cur;
+                prevMin = prev;
+            }
+            prev = cur;
+            cur = cur.next;
+        }
+        return retirarNodo(min, prevMin);
     }
 }

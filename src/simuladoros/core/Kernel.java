@@ -43,6 +43,8 @@ public class Kernel {
     public void setPlanificadorRR(int quantum) { this.planificador = new PlanificadorRR(quantum); }
     public void setPlanificadorSJF() { this.planificador = new PlanificadorSJF(); }
     public void setPlanificadorSRTF() { this.planificador = new PlanificadorSRTF(); }
+    public void setPlanificadorPrioridadNP() { this.planificador = new PlanificadorPrioridadNP(); }
+    public void setPlanificadorPrioridadP() { this.planificador = new PlanificadorPrioridadP(); }
     public String nombrePlanificador() { return planificador.nombre(); }
     public void setQuantumSiRR(int q) { if (planificador instanceof PlanificadorRR rr) rr.setQuantum(q); }
 
@@ -67,8 +69,15 @@ public class Kernel {
     public void setCicloListener(ciclolistener l) { this.cicloListener = l; }
 
     // ---------------------- Procesos ----------------------
+    // Mantengo la original por compatibilidad
     public Proceso crearProceso(String nombre, TipoProceso tipo, int totalInstr) {
+        return crearProceso(nombre, tipo, totalInstr, 0);
+    }
+
+    // Nueva con prioridad explícita (menor número = más prioridad)
+    public Proceso crearProceso(String nombre, TipoProceso tipo, int totalInstr, int prioridad) {
         Proceso p = new Proceso(nextPid++, nombre, tipo, totalInstr);
+        p.setPrioridad(prioridad);
         p.setEstado(EstadoProceso.LISTO);
         colaListos.encolar(p);
         return p;
@@ -91,6 +100,7 @@ public class Kernel {
     public ProcesoEvento ejecutarCPU() { return cpu.tick(); }
     public Proceso preemptarCPU() { return cpu.preempt(); }
 
+    // SJF/SRTF
     public Proceso peekListoMinRestantes() {
         Proceso[] arr = colaListos.toArray();
         if (arr.length == 0) return null;
@@ -100,9 +110,20 @@ public class Kernel {
         }
         return best;
     }
-
     public Proceso desencolarListoMinTotal() { return colaListos.retirarMinPorTotal(); }
     public Proceso desencolarListoMinRestantes() { return colaListos.retirarMinPorRestantes(); }
+
+    // Prioridad
+    public Proceso peekListoMinPrioridad() {
+        Proceso[] arr = colaListos.toArray();
+        if (arr.length == 0) return null;
+        Proceso best = arr[0];
+        for (int i = 1; i < arr.length; i++) {
+            if (arr[i].getPrioridad() < best.getPrioridad()) best = arr[i];
+        }
+        return best;
+    }
+    public Proceso desencolarListoMinPrioridad() { return colaListos.retirarMinPorPrioridad(); }
 
     public void manejarEvento(ProcesoEvento ev) {
         switch (ev.getTipo()) {

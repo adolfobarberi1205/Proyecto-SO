@@ -61,7 +61,10 @@ public class VentanaPrincipal  extends JFrame{
         spDuracion = new JSpinner(new SpinnerNumberModel(500, 10, 5000, 10));
         JLabel lblMs = new JLabel("ms/ciclo");
 
-        cbAlgoritmo = new JComboBox<>(new String[]{"FCFS", "Round Robin", "SJF", "SRTF"});
+        cbAlgoritmo = new JComboBox<>(new String[]{
+        "FCFS", "Round Robin", "SJF", "SRTF", "Prioridad (NP)", "Prioridad (P)"
+});
+
 
         spQuantum = new JSpinner(new SpinnerNumberModel(3, 1, 50, 1));
         JLabel lblQ = new JLabel("Quantum:");
@@ -164,8 +167,9 @@ public class VentanaPrincipal  extends JFrame{
         actualizarVisibilidadQuantum();
     }
 
-    private void aplicarAlgoritmoActual() {
+   private void aplicarAlgoritmoActual() {
     String sel = (String) cbAlgoritmo.getSelectedItem();
+
     if ("Round Robin".equals(sel)) {
         int q = (Integer) spQuantum.getValue();
         kernel.setPlanificadorRR(q);
@@ -173,12 +177,18 @@ public class VentanaPrincipal  extends JFrame{
         kernel.setPlanificadorSJF();
     } else if ("SRTF".equals(sel)) {
         kernel.setPlanificadorSRTF();
+    } else if ("Prioridad (NP)".equals(sel)) {
+        kernel.setPlanificadorPrioridadNP();
+    } else if ("Prioridad (P)".equals(sel)) {
+        kernel.setPlanificadorPrioridadP();
     } else {
         kernel.setPlanificadorFCFS();
     }
+
     lblPlan.setText("Política actual: " + kernel.nombrePlanificador());
-    actualizarVisibilidadQuantum();
+    actualizarVisibilidadQuantum(); // RR habilita spinner
 }
+
 
    private void actualizarVisibilidadQuantum() {
     boolean rr = "Round Robin".equals(cbAlgoritmo.getSelectedItem());
@@ -186,34 +196,45 @@ public class VentanaPrincipal  extends JFrame{
 }
 
     private void crearProcesoDesdeDialogo() {
-        String nombre = JOptionPane.showInputDialog(this, "Nombre del proceso:", "Nuevo Proceso", JOptionPane.QUESTION_MESSAGE);
-        if (nombre == null || nombre.trim().isEmpty()) return;
+    String nombre = JOptionPane.showInputDialog(this, "Nombre del proceso:", "Nuevo Proceso", JOptionPane.QUESTION_MESSAGE);
+    if (nombre == null || nombre.trim().isEmpty()) return;
 
-        Object opcion = JOptionPane.showInputDialog(
-                this,
-                "Tipo de proceso:",
-                "Nuevo Proceso",
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                new Object[]{"CPU_BOUND", "IO_BOUND"},
-                "CPU_BOUND"
-        );
-        if (opcion == null) return;
-        TipoProceso tipo = "IO_BOUND".equals(opcion.toString()) ? TipoProceso.IO_BOUND : TipoProceso.CPU_BOUND;
+    Object opcion = JOptionPane.showInputDialog(
+            this,
+            "Tipo de proceso:",
+            "Nuevo Proceso",
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            new Object[]{"CPU_BOUND", "IO_BOUND"},
+            "CPU_BOUND"
+    );
+    if (opcion == null) return;
+    TipoProceso tipo = "IO_BOUND".equals(opcion.toString()) ? TipoProceso.IO_BOUND : TipoProceso.CPU_BOUND;
 
-        String totalStr = JOptionPane.showInputDialog(this, "Total de instrucciones:", "50");
-        if (totalStr == null) return;
-        int total;
-        try {
-            total = Math.max(1, Integer.parseInt(totalStr.trim()));
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Valor inválido. Intenta de nuevo.");
-            return;
-        }
-
-        kernel.crearProceso(nombre.trim(), tipo, total);
-        refrescarListas();
+    String totalStr = JOptionPane.showInputDialog(this, "Total de instrucciones:", "50");
+    if (totalStr == null) return;
+    int total;
+    try {
+        total = Math.max(1, Integer.parseInt(totalStr.trim()));
+    } catch (NumberFormatException ex) {
+        JOptionPane.showMessageDialog(this, "Valor de instrucciones inválido.");
+        return;
     }
+
+    String prioStr = JOptionPane.showInputDialog(this, "Prioridad (entero, menor = más prioridad):", "0");
+    if (prioStr == null) return;
+    int prio;
+    try {
+        prio = Integer.parseInt(prioStr.trim());
+    } catch (NumberFormatException ex) {
+        JOptionPane.showMessageDialog(this, "Prioridad inválida.");
+        return;
+    }
+
+    kernel.crearProceso(nombre.trim(), tipo, total, prio);
+    refrescarListas();
+}
+    
 
     private void actualizarVistaCPU() {
         Proceso actual = kernel.getProcesoActual();
@@ -231,9 +252,11 @@ public class VentanaPrincipal  extends JFrame{
         String[] filasListos = new String[listos.length];
         for (int i = 0; i < listos.length; i++) {
             Proceso p = listos[i];
-            filasListos[i] = String.format("PID %d | %-12s | %-9s | %s | %d/%d",
-                    p.getPid(), p.getNombre(), p.getTipo(), p.getEstado(),
-                    p.getRestantes(), p.getTotalInstrucciones());
+            filasListos[i] = String.format("PID %d | %-12s | %-9s | prio:%d | %s | %d/%d",
+        p.getPid(), p.getNombre(), p.getTipo(), p.getPrioridad(), p.getEstado(),
+        p.getRestantes(), p.getTotalInstrucciones());
+
+                 
         }
         listaListos.setListData(filasListos);
 
@@ -245,9 +268,10 @@ public class VentanaPrincipal  extends JFrame{
         String[] filasTerm = new String[terms.length];
         for (int i = 0; i < terms.length; i++) {
             Proceso p = terms[i];
-            filasTerm[i] = String.format("PID %d | %-12s | %-9s | %s | %d/%d",
-                    p.getPid(), p.getNombre(), p.getTipo(), p.getEstado(),
-                    p.getRestantes(), p.getTotalInstrucciones());
+            filasTerm[i] = String.format("PID %d | %-12s | %-9s | prio:%d | %s | %d/%d",
+        p.getPid(), p.getNombre(), p.getTipo(), p.getPrioridad(), p.getEstado(),
+        p.getRestantes(), p.getTotalInstrucciones());
+
         }
         listaTerminados.setListData(filasTerm);
     }
