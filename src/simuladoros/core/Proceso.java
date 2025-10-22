@@ -9,7 +9,7 @@ package simuladoros.core;
  * @author user
  */
 public class Proceso {
-     private final int pid;
+      private final int pid;
     private String nombre;
     private TipoProceso tipo;
     private EstadoProceso estado;
@@ -17,6 +17,11 @@ public class Proceso {
     private int totalInstrucciones;
     private int restantes;
     private int prioridad = 0;
+
+    // Métricas (ciclos)
+    private int arrivalCiclo = -1;
+    private int startCiclo = -1;
+    private int completionCiclo = -1;
 
     public Proceso(int pid, String nombre, TipoProceso tipo, int totalInstrucciones) {
         this.pid = pid;
@@ -43,6 +48,15 @@ public class Proceso {
 
     public int getPrioridad() { return prioridad; }
     public void setPrioridad(int prioridad) { this.prioridad = prioridad; }
+
+    public int getArrivalCiclo() { return arrivalCiclo; }
+    public void setArrivalCiclo(int c) { this.arrivalCiclo = c; }
+
+    public int getStartCiclo() { return startCiclo; }
+    public void setStartCiclo(int c) { this.startCiclo = c; }
+
+    public int getCompletionCiclo() { return completionCiclo; }
+    public void setCompletionCiclo(int c) { this.completionCiclo = c; }
 
     @Override
     public String toString() {
