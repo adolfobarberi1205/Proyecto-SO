@@ -61,7 +61,8 @@ public class VentanaPrincipal  extends JFrame{
         spDuracion = new JSpinner(new SpinnerNumberModel(500, 10, 5000, 10));
         JLabel lblMs = new JLabel("ms/ciclo");
 
-        cbAlgoritmo = new JComboBox<>(new String[]{"FCFS", "Round Robin"});
+        cbAlgoritmo = new JComboBox<>(new String[]{"FCFS", "Round Robin", "SJF", "SRTF"});
+
         spQuantum = new JSpinner(new SpinnerNumberModel(3, 1, 50, 1));
         JLabel lblQ = new JLabel("Quantum:");
 
@@ -164,21 +165,25 @@ public class VentanaPrincipal  extends JFrame{
     }
 
     private void aplicarAlgoritmoActual() {
-        String sel = (String) cbAlgoritmo.getSelectedItem();
-        if ("Round Robin".equals(sel)) {
-            int q = (Integer) spQuantum.getValue();
-            kernel.setPlanificadorRR(q);
-        } else {
-            kernel.setPlanificadorFCFS();
-        }
-        lblPlan.setText("Política actual: " + kernel.nombrePlanificador());
-        actualizarVisibilidadQuantum();
+    String sel = (String) cbAlgoritmo.getSelectedItem();
+    if ("Round Robin".equals(sel)) {
+        int q = (Integer) spQuantum.getValue();
+        kernel.setPlanificadorRR(q);
+    } else if ("SJF".equals(sel)) {
+        kernel.setPlanificadorSJF();
+    } else if ("SRTF".equals(sel)) {
+        kernel.setPlanificadorSRTF();
+    } else {
+        kernel.setPlanificadorFCFS();
     }
+    lblPlan.setText("Política actual: " + kernel.nombrePlanificador());
+    actualizarVisibilidadQuantum();
+}
 
-    private void actualizarVisibilidadQuantum() {
-        boolean rr = "Round Robin".equals(cbAlgoritmo.getSelectedItem());
-        spQuantum.setEnabled(rr);
-    }
+   private void actualizarVisibilidadQuantum() {
+    boolean rr = "Round Robin".equals(cbAlgoritmo.getSelectedItem());
+    spQuantum.setEnabled(rr);
+}
 
     private void crearProcesoDesdeDialogo() {
         String nombre = JOptionPane.showInputDialog(this, "Nombre del proceso:", "Nuevo Proceso", JOptionPane.QUESTION_MESSAGE);

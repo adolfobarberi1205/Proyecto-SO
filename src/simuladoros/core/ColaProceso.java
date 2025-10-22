@@ -9,7 +9,7 @@ package simuladoros.core;
  * @author user
  *//** Cola FIFO hecha a mano para Proceso (sin usar ArrayList/Queue). */
 public class ColaProceso {
-    private static class Nodo {
+   private static class Nodo {
         Proceso value;
         Nodo next;
         Nodo(Proceso v) { this.value = v; }
@@ -42,7 +42,7 @@ public class ColaProceso {
     public boolean estaVacia() { return size == 0; }
     public int tamano() { return size; }
 
-    /** Fotografía inmutable del contenido actual de la cola. */
+    /** Fotografía del contenido actual de la cola. */
     public Proceso[] toArray() {
         Proceso[] arr = new Proceso[size];
         int i = 0;
@@ -50,5 +50,51 @@ public class ColaProceso {
             arr[i++] = n.value;
         }
         return arr;
+    }
+
+    /** Saca y retorna el proceso con menor TOTAL de instrucciones. */
+    public Proceso retirarMinPorTotal() {
+        if (head == null) return null;
+        Nodo prevMin = null, min = head;
+        Nodo prev = null, cur = head;
+        while (cur != null) {
+            if (cur.value.getTotalInstrucciones() < min.value.getTotalInstrucciones()) {
+                min = cur;
+                prevMin = prev;
+            }
+            prev = cur;
+            cur = cur.next;
+        }
+        return retirarNodo(min, prevMin);
+    }
+
+    /** Saca y retorna el proceso con menor RESTANTES. */
+    public Proceso retirarMinPorRestantes() {
+        if (head == null) return null;
+        Nodo prevMin = null, min = head;
+        Nodo prev = null, cur = head;
+        while (cur != null) {
+            if (cur.value.getRestantes() < min.value.getRestantes()) {
+                min = cur;
+                prevMin = prev;
+            }
+            prev = cur;
+            cur = cur.next;
+        }
+        return retirarNodo(min, prevMin);
+    }
+
+    private Proceso retirarNodo(Nodo objetivo, Nodo previo) {
+        if (objetivo == null) return null;
+        Proceso v = objetivo.value;
+        if (previo == null) { // objetivo es head
+            head = objetivo.next;
+            if (head == null) tail = null;
+        } else {
+            previo.next = objetivo.next;
+            if (objetivo == tail) tail = previo;
+        }
+        size--;
+        return v;
     }
 }
