@@ -12,7 +12,6 @@ import simuladoros.core.Proceso;
 import simuladoros.core.TipoProceso;
 import simuladoros.config.ArchivoConfig;
 
-
 /**
  *
  * @author user
@@ -26,7 +25,6 @@ public class VentanaPrincipal  extends JFrame{
     private JLabel lblPlan;
     private JLabel lblCiclo;
     private JLabel lblEjecucion;
-    
 
     private JComboBox<String> cbAlgoritmo;
     private JSpinner spQuantum;
@@ -43,11 +41,26 @@ public class VentanaPrincipal  extends JFrame{
     private JList<String> listaBloqueados;
     private JList<String> listaTerminados;
 
+    // METRICAS: panel y timer
+    private PanelMetricas panelMetricas;
+    private javax.swing.Timer timerMetricas; // usar el Timer de Swing
+
+    // METRICAS: tabs
+    private JTabbedPane tabsCentro;
+
     public VentanaPrincipal() {
         initUI();
         enlazarEventos();
         refrescarListas();
-        
+
+        // METRICAS: iniciar refresco periódico de métricas (cada 250 ms)
+        timerMetricas = new javax.swing.Timer(250, e -> {
+            if (kernel != null && panelMetricas != null) {
+                var snap = kernel.getMetricas().snapshot();
+                panelMetricas.updateFrom(snap);
+            }
+        });
+        timerMetricas.start();
     }
 
     // ================================
@@ -71,8 +84,6 @@ public class VentanaPrincipal  extends JFrame{
 
         lblEjecucion = new JLabel("CPU: [sin proceso]", SwingConstants.CENTER);
         lblEjecucion.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-
-        
 
         // Controles
         cbAlgoritmo = new JComboBox<>(new String[]{
@@ -101,7 +112,7 @@ public class VentanaPrincipal  extends JFrame{
         lblPlan.setAlignmentX(Component.CENTER_ALIGNMENT);
         lblCiclo.setAlignmentX(Component.CENTER_ALIGNMENT);
         lblEjecucion.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
+
         panelTop.add(Box.createVerticalStrut(6));
         panelTop.add(lblTitulo);
         panelTop.add(lblPlan);
@@ -110,14 +121,21 @@ public class VentanaPrincipal  extends JFrame{
         panelTop.add(Box.createVerticalStrut(6));
         panelTop.add(lblEjecucion);
         panelTop.add(Box.createVerticalStrut(6));
-       
         panelTop.add(Box.createVerticalStrut(6));
 
-        // Panel central (3 columnas)
+        // Panel central (3 columnas) -> irá dentro de una pestaña
         JPanel columnas = new JPanel(new GridLayout(1, 3, 10, 10));
         columnas.add(panelLista("Cola de Listos", listaListos));
         columnas.add(panelLista("Bloqueados (E/S)", listaBloqueados));
         columnas.add(panelLista("Terminados", listaTerminados));
+
+        // METRICAS: crear panel de métricas
+        panelMetricas = new PanelMetricas();
+
+        // METRICAS: JTabbedPane con "Colas" y "Métricas"
+        tabsCentro = new JTabbedPane();
+        tabsCentro.addTab("Colas", columnas);
+        tabsCentro.addTab("Métricas", panelMetricas);
 
         // Panel controles inferior
         JPanel panelControl = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
@@ -136,7 +154,10 @@ public class VentanaPrincipal  extends JFrame{
 
         setLayout(new BorderLayout(10, 10));
         add(panelTop, BorderLayout.NORTH);
-        add(columnas, BorderLayout.CENTER);
+
+        // METRICAS: en lugar de añadir 'columnas' directo, añadimos el tabbed
+        add(tabsCentro, BorderLayout.CENTER);
+
         add(panelControl, BorderLayout.SOUTH);
 
         actualizarVisibilidadQuantum();
@@ -163,7 +184,7 @@ public class VentanaPrincipal  extends JFrame{
                     lblCiclo.setText("Ciclo actual: " + numeroCiclo);
                     actualizarVistaCPU();
                     refrescarListas();
-                   
+                    // METRICAS: el Timer ya actualiza el panel periódicamente
                 })
         );
 
@@ -193,7 +214,11 @@ public class VentanaPrincipal  extends JFrame{
             lblCiclo.setText("Ciclo actual: 0");
             lblEjecucion.setText("CPU: [sin proceso]");
             refrescarListas();
-           
+
+            // METRICAS: refrescar panel a cero tras reinicio
+            if (panelMetricas != null) {
+                panelMetricas.updateFrom(kernel.getMetricas().snapshot());
+            }
         });
 
         spDuracion.addChangeListener(e -> {
@@ -236,7 +261,12 @@ public class VentanaPrincipal  extends JFrame{
                     btnPausa.setEnabled(false);
                     btnPausa.setText("Pausar");
                     refrescarListas();
-                    
+
+                    // METRICAS: snapshot tras cargar escenario
+                    if (panelMetricas != null) {
+                        panelMetricas.updateFrom(kernel.getMetricas().snapshot());
+                    }
+
                     JOptionPane.showMessageDialog(this, "Escenario cargado.");
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(this, "Error cargando: " + ex.getMessage());
@@ -359,5 +389,4 @@ public class VentanaPrincipal  extends JFrame{
         }
         listaTerminados.setListData(filasTerm);
     }
-
 }

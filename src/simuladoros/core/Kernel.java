@@ -8,8 +8,6 @@ import simuladoros.core.PlanificadorRR;
 import simuladoros.core.PlanificadorFCFS;
 import simuladoros.core.ciclolistener;
 
-
-
 /**
  *
  * @author user
@@ -38,6 +36,10 @@ public class Kernel {
     private long ciclosCpuOcupada = 0;
     private long procesosCompletados = 0;
 
+    // METRICAS: recolector avanzado (utilización, throughput, respuesta, equidad)
+    private Metricas metricas = new Metricas();
+    public Metricas getMetricas() { return metricas; }
+
     public Kernel() {
         reloj.setListener((ciclo, ts) -> {
             // Notificar a la UI siempre
@@ -46,6 +48,8 @@ public class Kernel {
             // (4) Optimización: si todo está inactivo, no planificar
             if (cpu.estaLibre() && colaListos.estaVacia() && colaBloqueados.estaVacia()) {
                 ciclosTotales++; // igual contamos ciclo para el reloj
+                // METRICAS: registrar tick inactivo
+                metricas.onTick(false);
                 return;
             }
 
@@ -54,7 +58,11 @@ public class Kernel {
 
             // Métricas
             ciclosTotales++;
-            if (!cpu.estaLibre()) ciclosCpuOcupada++;
+            boolean cpuOcupada = !cpu.estaLibre();
+            if (cpuOcupada) ciclosCpuOcupada++;
+
+            // METRICAS: tick con/ sin CPU ocupada
+            metricas.onTick(cpuOcupada);
         });
     }
 
@@ -76,11 +84,16 @@ public class Kernel {
                 if (cicloListener != null) cicloListener.onTick(c, ts);
                 if (cpu.estaLibre() && colaListos.estaVacia() && colaBloqueados.estaVacia()) {
                     ciclosTotales++;
+                    // METRICAS: tick inactivo
+                    metricas.onTick(false);
                     return;
                 }
                 planificador.onTick(this);
                 ciclosTotales++;
-                if (!cpu.estaLibre()) ciclosCpuOcupada++;
+                boolean cpuOcupada = !cpu.estaLibre();
+                if (cpuOcupada) ciclosCpuOcupada++;
+                // METRICAS: tick con/ sin CPU ocupada
+                metricas.onTick(cpuOcupada);
             });
             reloj.iniciar();
         }
@@ -107,6 +120,9 @@ public class Kernel {
         ciclosTotales = 0;
         ciclosCpuOcupada = 0;
         procesosCompletados = 0;
+        // METRICAS: reiniciar recolector
+        metricas = new Metricas();
+
         // limpiar CPU (el hilo de CPU no existe aparte; basta liberar)
         if (!cpu.estaLibre()) cpu.liberar();
         // resetear reloj (nuevo objeto con ciclo en 0)
@@ -115,11 +131,16 @@ public class Kernel {
             if (cicloListener != null) cicloListener.onTick(ciclo, ts);
             if (cpu.estaLibre() && colaListos.estaVacia() && colaBloqueados.estaVacia()) {
                 ciclosTotales++;
+                // METRICAS: tick inactivo
+                metricas.onTick(false);
                 return;
             }
             planificador.onTick(this);
             ciclosTotales++;
-            if (!cpu.estaLibre()) ciclosCpuOcupada++;
+            boolean cpuOcupada = !cpu.estaLibre();
+            if (cpuOcupada) ciclosCpuOcupada++;
+            // METRICAS: tick con/ sin CPU ocupada
+            metricas.onTick(cpuOcupada);
         });
     }
 
@@ -135,6 +156,10 @@ public class Kernel {
         p.setEstado(EstadoProceso.LISTO);
         p.setArrivalCiclo(getCicloActual());
         colaListos.encolar(p);
+
+        // METRICAS: llegada del proceso
+        metricas.onArrive(p.getPid(), getCicloActual());
+
         return p;
     }
 
@@ -153,17 +178,32 @@ public class Kernel {
 
     public void asignarCPU(Proceso p) {
         if (p.getStartCiclo() < 0) p.setStartCiclo(getCicloActual()); // métrica tiempo de respuesta
+        // METRICAS: primer inicio si aplica
+        metricas.onFirstStartIfNeeded(p.getPid(), getCicloActual());
         cpu.asignar(p);
     }
+
     public ProcesoEvento ejecutarCPU() {
+        // METRICAS: capturar a quién se le dará servicio en este tick (si hay)
+        Proceso ejecutado = cpu.getActual();
+
         ProcesoEvento ev = cpu.tick();
+
+        // METRICAS: si hubo proceso en CPU este tick, contar 1 tick de servicio
+        if (ejecutado != null) {
+            metricas.onCpuServiceTick(ejecutado.getPid());
+        }
+
         if (ev.getTipo() == ProcesoEvento.Tipo.TERMINADO) {
             Proceso fin = ev.getProceso();
             fin.setCompletionCiclo(getCicloActual());
             procesosCompletados++;
+            // METRICAS: completar proceso
+            metricas.onComplete(fin.getPid(), getCicloActual());
         }
         return ev;
     }
+
     public Proceso preemptarCPU() { return cpu.preempt(); }
 
     // SJF/SRTF
